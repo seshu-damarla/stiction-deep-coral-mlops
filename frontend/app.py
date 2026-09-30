@@ -30,8 +30,7 @@ def get_fastapi_url():
     # 3. Local development fallback
     return "http://127.0.0.1:8000"
 
-'''FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
-FASTAPI_URL = FASTAPI_URL.rstrip("/")'''
+
 FASTAPI_URL = get_fastapi_url()
 # ============================================================
 # 2. Page configuration
@@ -214,3 +213,23 @@ if uploaded_file is not None:
 # ============================================================
 st.divider()
 st.caption("OT Image → Deep CORAL Encoder → Logistic Regression → Stiction Diagnosis")
+
+#FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
+#FASTAPI_URL = FASTAPI_URL.rstrip("/")
+
+# one codebase now works in all four environments:
+# Local Python
+#     ↓
+# http://127.0.0.1:8000
+#
+# Docker Compose
+#     ↓
+# http://api:8000
+#
+# Kubernetes
+#     ↓
+# http://stiction-api-service:8000
+#
+# Streamlit Community Cloud
+#     ↓
+# https://stiction-deep-coral-api.onrender.com
