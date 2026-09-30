@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+
+# Streamlit
+.streamlit/
+
+# Local caches
+.cache/
+
+# Model backup/training files if created later
+*.ckpt
+*.pth
+
+# Do not ignore deployment artifacts
+!artifacts/
+!artifacts/encoder.pt
+!artifacts/logistic_regression.joblib
+!artifacts/threshold.json
+!artifacts/model_metadata.json

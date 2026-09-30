@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run automated tests
+        run: |
+          pytest -v
+
+      - name: Build FastAPI Docker image
+        run: |
+          docker build \
+            -f docker/Dockerfile.api \
+            -t stiction-deep-coral-api:ci \
+            .
+
+      - name: Build Streamlit Docker image
+        run: |
+          docker build \
+            -f docker/Dockerfile.frontend \
+            -t stiction-deep-coral-frontend:ci \
+            .
