@@ -1,0 +1,73 @@
+name: CD - Publish Images
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  publish-images:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image names and tags
+        shell: bash
+        run: |
+          OWNER_LC=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA="${HEAD_SHA:0:7}"
+
+          echo "API_IMAGE=ghcr.io/${OWNER_LC}/stiction-deep-coral-api" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=ghcr.io/${OWNER_LC}/stiction-deep-coral-frontend" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_ENV"
+
+      - name: Build FastAPI image
+        run: |
+          docker build \
+            -f docker/Dockerfile.api \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "${API_IMAGE}:latest" \
+            -t "${API_IMAGE}:sha-${SHORT_SHA}" \
+            .
+
+      - name: Push FastAPI image
+        run: |
+          docker push "${API_IMAGE}:latest"
+          docker push "${API_IMAGE}:sha-${SHORT_SHA}"
+
+      - name: Build Streamlit image
+        run: |
+          docker build \
+            -f docker/Dockerfile.frontend \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "${FRONTEND_IMAGE}:latest" \
+            -t "${FRONTEND_IMAGE}:sha-${SHORT_SHA}" \
+            .
+
+      - name: Push Streamlit image
+        run: |
+          docker push "${FRONTEND_IMAGE}:latest"
+          docker push "${FRONTEND_IMAGE}:sha-${SHORT_SHA}"
