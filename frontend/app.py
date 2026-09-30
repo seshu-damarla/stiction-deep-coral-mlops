@@ -10,25 +10,7 @@ from PIL import Image
 # ============================================================
 # 1. FastAPI address
 # ============================================================
-'''
-one codebase now works in all four environments:
-Local Python
-    ↓
-http://127.0.0.1:8000
 
-Docker Compose
-    ↓
-http://api:8000
-
-Kubernetes
-    ↓
-http://stiction-api-service:8000
-
-Streamlit Community Cloud
-    ↓
-https://stiction-deep-coral-api.onrender.com
-
-'''
 def get_fastapi_url():
 
     # 1. Environment variable
