@@ -10,9 +10,47 @@ from PIL import Image
 # ============================================================
 # 1. FastAPI address
 # ============================================================
-FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
-FASTAPI_URL = FASTAPI_URL.rstrip("/")
+'''
+one codebase now works in all four environments:
+Local Python
+    ↓
+http://127.0.0.1:8000
 
+Docker Compose
+    ↓
+http://api:8000
+
+Kubernetes
+    ↓
+http://stiction-api-service:8000
+
+Streamlit Community Cloud
+    ↓
+https://stiction-deep-coral-api.onrender.com
+
+'''
+def get_fastapi_url():
+
+    # 1. Environment variable
+    # Used by Docker Compose / Kubernetes
+    api_url = os.getenv("FASTAPI_URL")
+
+    if api_url:
+        return api_url.rstrip("/")
+
+    # 2. Streamlit Community Cloud secret
+    try:
+        api_url = st.secrets["FASTAPI_URL"]
+        return api_url.rstrip("/")
+    except Exception:
+        pass
+
+    # 3. Local development fallback
+    return "http://127.0.0.1:8000"
+
+'''FASTAPI_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
+FASTAPI_URL = FASTAPI_URL.rstrip("/")'''
+FASTAPI_URL = get_fastapi_url()
 # ============================================================
 # 2. Page configuration
 # ============================================================
