@@ -1,63 +1,390 @@
-## Telco Churn – End-to-End ML Project
-### Purpose
+# Control Valve Stiction Detection using OT Images and Deep CORAL
 
-Build and ship a full machine-learning solution for predicting customer churn in a telecom setting—from data prep and modeling to an API + web UI deployed on AWS.
+This repository contains the deployment implementation of a control-valve stiction detection framework based on **Optimal Transport (OT) images, Deep CORAL, and Logistic Regression**.
 
-### Problem solved & benefits
+The main goal of this project is to show how a research model can be converted into a practical application using **FastAPI, Streamlit, Docker, Docker Compose, and Kubernetes**.
 
-- Faster decisions: Predicts which customers are likely to churn so teams can act before they leave.
-- Operationalized ML: Model is accessible via a REST API and a simple UI; anyone can test it without notebooks.
-- Repeatable delivery: CI/CD + containers mean every change can be rebuilt, tested, and redeployed in a consistent way.
-- Traceable experiments: MLflow tracks runs, metrics, and artifacts for reproducibility and auditing.
+## Live Demo
 
-### What I built
+**Streamlit application:**  
+https://stiction-deep-coral.streamlit.app
 
-- Data & Modeling: Feature engineering + XGBoost classifier; experiments logged to MLflow.
-- Model tracking: Runs, metrics, and the serialized model logged under a named MLflow experiment.
-- Inference service: FastAPI app exposing /predict (POST) and a root health check /.
-- Web UI: Gradio interface mounted at /ui for quick, shareable manual testing.
-- Containerization: Docker image with uvicorn entrypoint (src.app.main:app) listening on port 8000.
-- CI/CD: GitHub Actions builds the image and pushes to Docker Hub; optionally triggers an ECS service update.
-- Orchestration: AWS ECS Fargate runs the container (serverless).
-- Networking: Application Load Balancer (ALB) on HTTP:80 forwarding to a Target Group (IP targets on HTTP:8000).
-- Security: Security groups scoped to allow ALB inbound 80 from the internet, and task inbound 8000 from the ALB SG.
-- Observability: CloudWatch Logs for container stdout/stderr and ECS service events.
+**FastAPI documentation:**  
+https://stiction-deep-coral-api.onrender.com/docs
 
-### Deployment flow (high-level)
+**GitHub repository:**  
+https://github.com/seshu-damarla/stiction-deep-coral-mlops
 
-- Push to main → GitHub Actions builds the Docker image and pushes it to Docker Hub.
-- ECS service is updated (manually or via the workflow) to force a new deployment.
-- ALB health checks hit / on port 8000; once healthy, traffic is routed to the new task.
-- Users call POST /predict or open the Gradio UI at /ui via the ALB DNS.
+---
 
-### Roadblocks & how we solved them
+## Research Paper
 
-Unhealthy targets behind ALB
+This repository is based on the following research paper:
 
-- Cause: App didn’t respond at the health-check path; listener/target port mismatches.
-- Fixes: Added GET / health endpoint; confirmed ALB listener on 80 forwards to TG on 8000; TG health check path set to /.
+**Optimal Transport Image Representation and Deep Covariance Alignment (CORAL) for Control Valve Stiction Detection**
 
-Module import error in container (ModuleNotFoundError: serving)
+**Author:** Seshu K. Damarla
 
-- Cause: Python path in the image didn’t include src/.
-- Fixes: Set PYTHONPATH=/app/src in the Dockerfile; corrected uvicorn app path to src.app.main:app.
+**arXiv:** https://arxiv.org/abs/2607.22486  
+**DOI:** https://doi.org/10.48550/arXiv.2607.22486
 
-ALB DNS timing out
+The paper addresses an important problem in data-driven stiction detection. A model trained only with simulated control-loop data may not perform well on real industrial data because the simulated and industrial data have different distributions. This difference is treated as a domain-shift problem.
 
-- Cause: Security group rules not aligned with traffic flow.
-- Fixes: ALB SG allows inbound 80 from 0.0.0.0/0; task SG allows inbound 8000 from the ALB SG; outbound open.
+The proposed method combines **Optimal Transport imaging** and **Deep CORAL domain adaptation**. Controller output (OP) and process variable (PV) signals are converted into two-dimensional OT images. A CNN encoder then learns useful features from these images.
 
-ECS redeploy not picking up the new image
+During training, the encoder uses two types of information:
 
-- Cause: Service still running previous task definition.
-- Fixes: Force new deployment (CLI or console) after pushing the new image; optional step added to CI.
+- labeled OT images generated from simulation data,
+- unlabeled OT images from industrial control loops.
 
-Gradio UI error (“No runs found in experiment”)
+The training objective combines a classification loss on the labeled simulation data with a Deep CORAL loss. The CORAL loss aligns the covariance of the source-domain and target-domain feature distributions. This helps the encoder learn features that are less dependent on whether the data come from simulation or an industrial process.
 
-- Cause: Inference/UI expected an MLflow-logged model but couldn’t resolve a run.
-- Fixes: Standardized MLflow experiment name and model logging in training; inference loads the logged model consistently (and a local path for dev).
+After domain adaptation, the learned features are used for final stiction classification.
 
-Local testing vs. prod paths
+The paper evaluated the method on an independent set of **20 industrial benchmark control loops**. The proposed method correctly diagnosed **18 out of 20 loops**. It detected all **13 stiction cases**, giving:
 
-- Cause: MLflow artifact URIs differ locally vs. in container.
-- Fixes: For local dev, load via direct ./mlruns/.../artifacts/model; in prod, container loads the packaged model path used at build time.
+| Metric | Result |
+|---|---:|
+| Accuracy | 90.00% |
+| Precision | 86.67% |
+| Recall | 100.00% |
+| F1-score | 92.86% |
+
+The results show that domain adaptation can reduce the gap between simulation data and industrial data and improve the practical use of data-driven stiction detection.
+
+### Citation
+
+If you use this repository or the proposed method, please cite the paper:
+
+```bibtex
+@article{Damarla2026OTDeepCORAL,
+  title   = {Optimal Transport Image Representation and Deep Covariance Alignment (CORAL) for Control Valve Stiction Detection},
+  author  = {Damarla, Seshu K.},
+  journal = {arXiv preprint arXiv:2607.22486},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2607.22486}
+}
+```
+
+---
+
+## Project Overview
+
+Control-valve stiction is a common problem in industrial process control loops. It can cause oscillations, poor control performance, and unnecessary process variability.
+
+In this work, process signals are converted into OT images. A CNN encoder trained using Deep CORAL is used to extract domain-adapted features. These features are then classified using Logistic Regression.
+
+The final inference path is:
+
+```text
+OT Image
+   ↓
+Deep CORAL CNN Encoder
+   ↓
+64-dimensional feature vector
+   ↓
+StandardScaler
+   ↓
+Logistic Regression
+   ↓
+Stiction / Non-stiction
+```
+
+The deployed model uses the trained Deep CORAL encoder and the final Logistic Regression classifier from the research study.
+
+---
+
+## Main Features
+
+- Deep CORAL based feature extraction
+- Logistic Regression classifier
+- FastAPI REST API
+- Streamlit web interface
+- Docker containerization
+- Docker Compose for running frontend and backend together
+- Kubernetes deployment
+- Health and model-information API endpoints
+- Automated tests for preprocessing, model loading, inference, and API endpoints
+- Public Streamlit demo
+- Public FastAPI backend
+
+---
+
+## Model Performance
+
+The final model was evaluated on 20 industrial test loops.
+
+| Metric | Value |
+|---|---:|
+| Accuracy | 0.9000 |
+| Precision | 0.8667 |
+| Recall | 1.0000 |
+| F1-score | 0.9286 |
+
+Confusion matrix:
+
+```text
+[[5, 2],
+ [0, 13]]
+```
+
+The model correctly detected all 13 stiction loops in the test set.
+
+---
+
+## Repository Structure
+
+```text
+stiction-deep-coral-mlops/
+│
+├── artifacts/
+│   ├── encoder.pt
+│   ├── logistic_regression.joblib
+│   ├── threshold.json
+│   └── model_metadata.json
+│
+├── src/
+│   ├── preprocessing.py
+│   ├── model.py
+│   └── inference.py
+│
+├── api/
+│   ├── main.py
+│   └── schemas.py
+│
+├── frontend/
+│   └── app.py
+│
+├── tests/
+│
+├── docker/
+│   ├── Dockerfile.api
+│   └── Dockerfile.frontend
+│
+├── kubernetes/
+│   ├── api-deployment.yml
+│   ├── api-service.yml
+│   ├── frontend-deployment.yml
+│   └── frontend-service.yml
+│
+├── demo_data/
+│
+├── docker-compose.yml
+├── requirements.txt
+├── requirements-api.txt
+├── requirements-frontend.txt
+└── README.md
+```
+
+---
+
+## FastAPI Backend
+
+The FastAPI application provides the following endpoints:
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/` | GET | API status |
+| `/health` | GET | Check API and model status |
+| `/model-info` | GET | Show model information |
+| `/predict` | POST | Upload an OT image and obtain a prediction |
+
+Example health response:
+
+```json
+{
+  "status": "healthy",
+  "model_loaded": true
+}
+```
+
+The public API documentation is available at:
+
+https://stiction-deep-coral-api.onrender.com/docs
+
+---
+
+## Streamlit Application
+
+The Streamlit interface allows the user to:
+
+1. upload an OT image,
+2. send the image to the FastAPI service,
+3. obtain the stiction probability,
+4. view the final stiction or non-stiction diagnosis.
+
+Public application:
+
+https://stiction-deep-coral.streamlit.app
+
+---
+
+## Run Locally
+
+Create and activate a virtual environment, then install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start FastAPI:
+
+```bash
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+The API will be available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Start Streamlit in another terminal:
+
+```bash
+streamlit run frontend/app.py
+```
+
+The Streamlit application will be available at:
+
+```text
+http://127.0.0.1:8501
+```
+
+---
+
+## Run with Docker Compose
+
+Build and start both services:
+
+```bash
+docker compose up --build
+```
+
+The services are:
+
+```text
+Streamlit frontend  → http://localhost:8501
+FastAPI backend     → http://localhost:8001
+```
+
+Stop the services using:
+
+```bash
+docker compose down
+```
+
+---
+
+## Kubernetes Deployment
+
+The application was also deployed locally using Kubernetes.
+
+The Kubernetes architecture is:
+
+```text
+Browser
+   ↓
+Streamlit Service
+   ↓
+Streamlit Pod
+   ↓
+FastAPI Service
+   ↓
+FastAPI Pod
+   ↓
+Deep CORAL + Logistic Regression
+```
+
+Apply the API deployment and service:
+
+```bash
+kubectl apply -f kubernetes/api-deployment.yml
+kubectl apply -f kubernetes/api-service.yml
+```
+
+Apply the Streamlit deployment and service:
+
+```bash
+kubectl apply -f kubernetes/frontend-deployment.yml
+kubectl apply -f kubernetes/frontend-service.yml
+```
+
+Check the deployment:
+
+```bash
+kubectl get deployments
+kubectl get pods
+kubectl get services
+```
+
+To access Streamlit locally:
+
+```bash
+kubectl port-forward service/stiction-frontend-service 8501:8501
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8501
+```
+
+---
+
+## Public Deployment
+
+For the public demonstration:
+
+```text
+User
+  ↓
+Streamlit Community Cloud
+  ↓
+FastAPI on Render
+  ↓
+Deep CORAL Encoder
+  ↓
+Logistic Regression
+  ↓
+Stiction / Non-stiction
+```
+
+The Streamlit application is hosted on **Streamlit Community Cloud**, and the FastAPI backend is hosted on **Render**.
+
+---
+
+## Technologies Used
+
+- Python
+- PyTorch
+- scikit-learn
+- FastAPI
+- Streamlit
+- Docker
+- Docker Compose
+- Kubernetes
+- pytest
+- Render
+- Streamlit Community Cloud
+
+---
+
+## Research Context
+
+This deployment is based on the research paper:
+
+**Optimal Transport Image Representation and Deep Covariance Alignment (CORAL) for Control Valve Stiction Detection**  
+https://arxiv.org/abs/2607.22486
+
+The paper focuses on the development and evaluation of the stiction-detection method. This repository mainly focuses on the **deployment and MLOps side** of the same research model.
+
+The purpose of the repository is to show how the trained research model can be moved from an experimental notebook to a practical application. The model is packaged as reusable inference artifacts, exposed through FastAPI, connected to a Streamlit interface, containerized with Docker, deployed using Docker Compose and Kubernetes, and finally made available through a public web application.
+
+---
+
+## Author
+
+**Seshu Kumar Damarla**
+
+Research interests include process control, process systems engineering, industrial AI, soft sensors, predictive maintenance, and data-driven process monitoring.
